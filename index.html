@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Não é o Trello™ - Gestor de Tarefas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .dragging { opacity: 0.5; transform: rotate(3deg); }
+        .drag-over { background-color: #e0f2fe; border-color: #38bdf8; border-style: dashed; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .modal-content a { color: #2563eb; text-decoration: underline; word-break: break-all; }
+        
+        /* Estilos do Calendário */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .calendar-day { position: relative; display: flex; align-items: center; justify-content: center; height: 48px; border-radius: 50%; }
+        .calendar-day.today { background-color: #2563eb; color: white; font-weight: bold; }
+        .calendar-day.other-month { color: #9ca3af; }
+        .calendar-day:after { content: ''; position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); width: 6px; height: 6px; border-radius: 50%; }
+        .calendar-day[data-holiday]:after { background-color: #ef4444; /* Vermelho para Feriado */ }
+        .calendar-day[data-commemorative]:after { background-color: #3b82f6; /* Azul para Data Comemorativa */ }
+        .tooltip { visibility: hidden; opacity: 0; transition: opacity 0.2s; }
+        .has-tooltip:hover .tooltip { visibility: visible; opacity: 1; }
+        
+        /* Animações */
+        @keyframes fadeInPulse { 0% { opacity: 0; transform: scale(0.95); } 50% { transform: scale(1.05); } 100% { opacity: 1; transform: scale(1); } }
+        .event-balloon-active { animation: fadeInPulse 0.5s ease-out forwards; }
+        .icon-pulse { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+
+    <!-- Tela de Login -->
+    <div id="login-screen" class="flex items-center justify-center h-screen bg-gray-100">
+        <div class="w-full max-w-md bg-white p-8 rounded-lg shadow-md text-center">
+            <img src="https://i.ibb.co/0jf01VHq/logo2.png" alt="logo" class="w-72 mx-auto mb-6">
+            <h2 class="text-3xl font-bold text-blue-600 mb-6">Não é o Trello™</h2>
+            <form id="login-form">
+                <div class="mb-4 text-left"><label for="username" class="block text-sm font-medium text-gray-700">Usuário</label><input type="text" id="username" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" required></div>
+                <div class="mb-6 text-left"><label for="password" class="block text-sm font-medium text-gray-700">Senha</label><input type="password" id="password" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" required></div>
+                <p id="login-error" class="text-red-500 text-sm mb-4 text-center hidden">Usuário ou senha inválidos.</p>
+                <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition">Entrar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Conteúdo Principal do App -->
+    <div id="app-content" class="h-screen flex-col hidden">
+        <header class="bg-blue-600 text-white shadow-md p-4 flex justify-between items-center z-10">
+            <div class="flex items-center gap-4">
+                <h1 class="text-2xl font-bold">Não é o Trello™</h1>
+                <div id="next-event-balloon" class="hidden items-center gap-3 bg-amber-400 text-amber-900 text-sm font-semibold px-4 py-2 rounded-lg shadow-md cursor-pointer hover:bg-amber-300 transition-colors">
+                    <i data-lucide="bell" class="w-5 h-5 icon-pulse"></i>
+                    <span id="next-event-text"></span>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <button id="calendar-btn" class="bg-white text-blue-600 font-semibold py-2 px-4 rounded-lg shadow hover:bg-blue-50 transition flex items-center gap-2"><i data-lucide="calendar" class="w-5 h-5"></i>Calendário</button>
+                <button id="manage-users-btn" class="hidden bg-white text-blue-600 font-semibold py-2 px-4 rounded-lg shadow hover:bg-blue-50 transition flex items-center gap-2"><i data-lucide="users" class="w-5 h-5"></i>Gerenciar Usuários</button>
+                <button id="add-task-btn" class="bg-white text-blue-600 font-semibold py-2 px-4 rounded-lg shadow hover:bg-blue-50 transition flex items-center gap-2"><i data-lucide="plus-circle" class="w-5 h-5"></i>Nova Solicitação</button>
+                <button id="logout-btn" class="bg-red-500 text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-red-600 transition flex items-center gap-2"><i data-lucide="log-out" class="w-5 h-5"></i>Sair</button>
+            </div>
+        </header>
+
+        <main class="flex-1 flex overflow-x-auto p-4 space-x-4 no-scrollbar">
+            <div id="kanban-board" class="flex flex-1 space-x-4">
+                <div class="kanban-column bg-gray-100 w-80 rounded-lg shadow-sm flex-shrink-0" data-status="new"><h2 class="text-lg font-semibold text-gray-700 p-3 border-b-2 border-gray-200 flex justify-between items-center"><span>📥 Novas Solicitações</span><span id="count-new" class="bg-gray-300 text-gray-700 text-sm font-bold rounded-full px-2 py-0.5">0</span></h2><div class="task-list p-3 space-y-3 h-full overflow-y-auto" id="tasks-new"></div></div>
+                <div class="kanban-column bg-gray-100 w-80 rounded-lg shadow-sm flex-shrink-0" data-status="progress"><h2 class="text-lg font-semibold text-gray-700 p-3 border-b-2 border-gray-200 flex justify-between items-center"><span>⚙️ Em Andamento</span><span id="count-progress" class="bg-blue-200 text-blue-800 text-sm font-bold rounded-full px-2 py-0.5">0</span></h2><div class="task-list p-3 space-y-3 h-full overflow-y-auto" id="tasks-progress"></div></div>
+                <div class="kanban-column bg-gray-100 w-80 rounded-lg shadow-sm flex-shrink-0" data-status="review"><h2 class="text-lg font-semibold text-gray-700 p-3 border-b-2 border-gray-200 flex justify-between items-center"><span>🔍 Em Revisão</span><span id="count-review" class="bg-yellow-200 text-yellow-800 text-sm font-bold rounded-full px-2 py-0.5">0</span></h2><div class="task-list p-3 space-y-3 h-full overflow-y-auto" id="tasks-review"></div></div>
+                <div class="kanban-column bg-gray-100 w-80 rounded-lg shadow-sm flex-shrink-0" data-status="done"><h2 class="text-lg font-semibold text-gray-700 p-3 border-b-2 border-gray-200 flex justify-between items-center"><span>✅ Concluído</span><span id="count-done" class="bg-green-200 text-green-800 text-sm font-bold rounded-full px-2 py-0.5">0</span></h2><div class="task-list p-3 space-y-3 h-full overflow-y-auto" id="tasks-done"></div></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modais (Calendário, Tarefas, etc.) -->
+    <div id="calendar-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-50"> <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg"> <div class="flex justify-between items-center mb-4"> <button id="prev-month-btn" class="p-2 rounded-full hover:bg-gray-100"><i data-lucide="chevron-left" class="w-6 h-6"></i></button> <h2 id="calendar-month-year" class="text-xl font-bold text-gray-800"></h2> <button id="next-month-btn" class="p-2 rounded-full hover:bg-gray-100"><i data-lucide="chevron-right" class="w-6 h-6"></i></button> </div> <div class="grid grid-cols-7 gap-2 text-center text-sm font-medium text-gray-500 mb-2"> <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div> </div> <div id="calendar-grid-container" class="calendar-grid"></div> <div class="flex justify-between items-center mt-4"> <div class="flex items-center gap-4 text-sm"> <span class="flex items-center gap-2"><span class="w-3 h-3 bg-red-500 rounded-full"></span> Feriado</span> <span class="flex items-center gap-2"><span class="w-3 h-3 bg-blue-500 rounded-full"></span> Data Com.</span> </div> <button type="button" id="close-calendar-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Fechar</button> </div> </div> </div>
+    <div id="task-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-20"><div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg"><h2 class="text-2xl font-bold mb-4" id="modal-title">Nova Solicitação</h2><form id="task-form"><input type="hidden" id="task-id"><input type="hidden" id="attachmentLink"><div class="mb-4"><label for="title" class="block text-sm font-medium text-gray-700">Título</label><input type="text" id="title" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3" required></div><div class="mb-4"><label for="store" class="block text-sm font-medium text-gray-700">Loja Solicitante</label><input type="text" id="store" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3" required></div><div class="mb-4"><label for="link" class="block text-sm font-medium text-gray-700">Link de Referência</label><input type="url" id="link" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"></div><div class="mb-4"><label for="file-upload" class="block text-sm font-medium text-gray-700">Anexar Arquivo (opcional)</label><input type="file" id="file-upload" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"><p id="upload-status" class="text-sm text-gray-500 mt-2"></p></div><div class="flex justify-end space-x-3 mt-6"><button type="button" id="cancel-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Cancelar</button><button type="submit" id="submit-task-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">Salvar</button></div></form></div></div>
+    <div id="view-task-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-30"><div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg modal-content"><h2 id="view-title" class="text-2xl font-bold mb-4 text-gray-800"></h2><div class="space-y-4"><p><strong>Loja:</strong> <span id="view-store"></span></p><p><strong>Link de Referência:</strong> <span id="view-link"></span></p><p><strong>Link do Anexo:</strong> <span id="view-attachment"></span></p><div id="view-admin-note-container" class="hidden mt-4"><p class="font-semibold text-gray-800">Descrição das Alterações:</p><p id="view-admin-note" class="text-sm text-blue-700 bg-blue-100 p-3 rounded-md border border-blue-200"></p></div><div id="view-rejection-reason-container" class="hidden mt-4"><p class="font-semibold text-gray-800">Motivo da Reprovação:</p><p id="view-rejection-reason" class="text-sm text-red-700 bg-red-100 p-3 rounded-md border border-red-200"></p></div></div><div class="flex justify-between items-center mt-6"><button type="button" id="delete-task-btn" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 hidden flex items-center gap-2"><i data-lucide="trash-2" class="w-4 h-4"></i>Apagar</button><div class="flex space-x-3"><button type="button" id="close-view-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Fechar</button><button type="button" id="edit-task-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">Editar</button></div></div></div></div>
+    <div id="rejection-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-50"><div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"><h2 class="text-xl font-bold mb-4">Reprovar Solicitação</h2><form id="rejection-form"><input type="hidden" id="rejection-task-id"><label for="rejection-reason" class="block text-sm font-medium text-gray-700">Por favor, informe o motivo da reprovação:</label><textarea id="rejection-reason" rows="4" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500" required></textarea><div class="flex justify-end space-x-3 mt-4"><button type="button" id="cancel-rejection-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Cancelar</button><button type="submit" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">Enviar Reprovação</button></div></form></div></div>
+    <div id="resubmit-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-50"><div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"><h2 class="text-xl font-bold mb-4">Reenviar para Revisão</h2><form id="resubmit-form"><input type="hidden" id="resubmit-task-id"><label for="change-description" class="block text-sm font-medium text-gray-700">Descreva as alterações realizadas:</label><textarea id="change-description" rows="4" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500" required></textarea><div class="flex justify-end space-x-3 mt-4"><button type="button" id="cancel-resubmit-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Cancelar</button><button type="submit" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">Reenviar</button></div></form></div></div>
+    <div id="user-management-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-40"><div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] flex flex-col"><div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">Gerenciar Usuários</h2><button id="close-user-modal-btn" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button></div><div class="flex-1 overflow-y-auto pr-2"><h3 class="text-lg font-semibold mb-2">Adicionar Novo Usuário</h3><form id="add-user-form" class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-6 p-4 border rounded-lg bg-gray-50"><input id="new-username" type="text" placeholder="Usuário" class="p-2 border rounded" required><input id="new-password" type="password" placeholder="Senha" class="p-2 border rounded" required><input id="new-store" type="text" placeholder="Nome da Loja (se cliente)" class="p-2 border rounded"><select id="new-role" class="p-2 border rounded bg-white"><option value="client">Cliente</option><option value="admin">Admin</option></select><button type="submit" class="bg-blue-600 text-white font-semibold p-2 rounded-lg hover:bg-blue-700">Adicionar</button></form><h3 class="text-lg font-semibold mb-2">Usuários Cadastrados</h3><div id="user-list" class="space-y-2"></div></div></div></div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, where, doc, updateDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+
+        // --- Configuração do Cloudinary ---
+        const CLOUDINARY_CLOUD_NAME = "do4t20nde";
+        const CLOUDINARY_UPLOAD_PRESET = "ml_default";
+        const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCRHKnY-3jihv3xUXQlhOCb01SdAM1sel4",
+            authDomain: "trello-bb439.firebaseapp.com",
+            projectId: "trello-bb439",
+            storageBucket: "trello-bb439.appspot.com",
+            messagingSenderId: "808138683679",
+            appId: "1:808138683679:web:b72be47061177d768cac2a"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let unsubscribeTasks = null;
+        let unsubscribeUsers = null;
+        let allTasks = [];
+        let events = [];
+        let currentDate = new Date();
+
+        const loginScreen = document.getElementById('login-screen');
+        const appContent = document.getElementById('app-content');
+        const loginForm = document.getElementById('login-form');
+        const logoutBtn = document.getElementById('logout-btn');
+        const loginError = document.getElementById('login-error');
+        const manageUsersBtn = document.getElementById('manage-users-btn');
+        const addTaskBtn = document.getElementById('add-task-btn');
+        const taskModal = document.getElementById('task-modal');
+        const taskForm = document.getElementById('task-form');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const viewTaskModal = document.getElementById('view-task-modal');
+        const closeViewBtn = document.getElementById('close-view-btn');
+        const editTaskBtn = document.getElementById('edit-task-btn');
+        const userManagementModal = document.getElementById('user-management-modal');
+        const closeUserModalBtn = document.getElementById('close-user-modal-btn');
+        const addUserForm = document.getElementById('add-user-form');
+        const userListDiv = document.getElementById('user-list');
+        const rejectionModal = document.getElementById('rejection-modal');
+        const rejectionForm = document.getElementById('rejection-form');
+        const cancelRejectionBtn = document.getElementById('cancel-rejection-btn');
+        const resubmitModal = document.getElementById('resubmit-modal');
+        const resubmitForm = document.getElementById('resubmit-form');
+        const cancelResubmitBtn = document.getElementById('cancel-resubmit-btn');
+        const calendarModal = document.getElementById('calendar-modal');
+        const calendarBtn = document.getElementById('calendar-btn');
+        const closeCalendarBtn = document.getElementById('close-calendar-btn');
+        const nextEventBalloon = document.getElementById('next-event-balloon');
+
+        // --- LÓGICA DO CALENDÁRIO ---
+        const commemorativeDates = [
+            { date: '01-01', name: 'Confraternização Universal' }, { date: '01-07', name: 'Dia do Leitor' },
+            { date: '01-15', name: 'Dia Mundial do Compositor' }, { date: '02-19', name: 'Dia do Esportista' },
+            { date: '03-08', name: 'Dia Internacional da Mulher' }, { date: '03-15', name: 'Dia do Consumidor' },
+            { date: '03-21', name: 'Dia Mundial da Poesia' }, { date: '03-27', name: 'Dia do Circo' },
+            { date: '04-07', name: 'Dia do Jornalista' }, { date: '04-13', name: 'Dia do Beijo' },
+            { date: '04-15', name: 'Dia Mundial do Desenhista' }, { date: '04-18', name: 'Dia Nacional do Livro Infantil' },
+            { date: '04-23', name: 'Dia Mundial do Livro' }, { date: '05-01', name: 'Dia do Trabalho' },
+            { date: '05-13', name: 'Dia das Mães (2º Dom)' }, { date: '05-17', name: 'Dia Mundial da Internet' },
+            { date: '05-25', name: 'Dia do Orgulho Nerd' }, { date: '06-12', name: 'Dia dos Namorados' },
+            { date: '06-28', name: 'Dia do Orgulho LGBTQIA+' }, { date: '07-13', name: 'Dia Mundial do Rock' },
+            { date: '07-20', name: 'Dia do Amigo' }, { date: '07-26', name: 'Dia dos Avós' },
+            { date: '08-11', name: 'Dia do Estudante' }, { date: '08-12', name: 'Dia dos Pais (2º Dom)' },
+            { date: '08-15', name: 'Dia do Solteiro' }, { date: '08-19', name: 'Dia Mundial da Fotografia' },
+            { date: '09-15', name: 'Dia do Cliente' }, { date: '09-22', name: 'Início da Primavera' },
+            { date: '09-30', name: 'Dia da Secretária' }, { date: '10-01', name: 'Dia Mundial do Vendedor' },
+            { date: '10-04', name: 'Dia Mundial dos Animais' }, { date: '10-12', name: 'Dia das Crianças' },
+            { date: '10-15', name: 'Dia do Professor' }, { date: '10-31', name: 'Dia das Bruxas (Halloween)' },
+            { date: '11-19', name: 'Dia do Empreendedorismo Feminino' }, { date: '11-20', name: 'Dia da Consciência Negra' },
+            { date: '11-22', name: 'Dia do Músico' }, { date: '11-29', name: 'Black Friday (Últ. Sex)' },
+            { date: '12-02', name: 'Cyber Monday (1ª Seg)' }, { date: '12-21', name: 'Início do Verão' },
+            { date: '12-25', name: 'Natal' }
+        ];
+
+        async function fetchEvents(year) {
+            try {
+                const response = await fetch(`https://brasilapi.com.br/api/feriados/v1/${year}`);
+                if (!response.ok) throw new Error('Falha ao buscar feriados.');
+                let apiHolidays = await response.json();
+                
+                const holidays = apiHolidays.map(h => ({ ...h, type: 'holiday' }));
+
+                const yearCommemorativeDates = commemorativeDates.map(d => {
+                    const [month, day] = d.date.split('-');
+                    return { date: `${year}-${month}-${day}`, name: d.name, type: 'commemorative' };
+                });
+
+                const allEvents = [...holidays];
+                yearCommemorativeDates.forEach(cd => {
+                    if (!allEvents.some(h => h.date === cd.date)) {
+                        allEvents.push(cd);
+                    }
+                });
+
+                events = allEvents;
+                updateNextEventBalloon();
+                renderCalendar(currentDate.getFullYear(), currentDate.getMonth());
+            } catch (error) {
+                console.error("Erro ao buscar eventos:", error);
+                events = [];
+            }
+        }
+
+        function updateNextEventBalloon() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const upcomingEvents = events
+                .map(e => ({ name: e.name, date: new Date(e.date + 'T03:00:00'), type: e.type }))
+                .filter(e => e.date >= today)
+                .sort((a, b) => a.date - b.date);
+
+            if (upcomingEvents.length > 0) {
+                const nextEvent = upcomingEvents[0];
+                const diffTime = nextEvent.date - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                let dayString = `em ${diffDays} dias`;
+                if(diffDays === 0) dayString = 'é hoje';
+                if(diffDays === 1) dayString = 'é amanhã';
+
+                document.getElementById('next-event-text').textContent = `${nextEvent.name} (${dayString})`;
+                nextEventBalloon.classList.remove('hidden');
+                nextEventBalloon.classList.add('flex', 'event-balloon-active');
+            } else {
+                 nextEventBalloon.classList.add('hidden');
+                 nextEventBalloon.classList.remove('event-balloon-active');
+            }
+        }
+
+        function renderCalendar(year, month) {
+            const calendarGrid = document.getElementById('calendar-grid-container');
+            const monthYearEl = document.getElementById('calendar-month-year');
+            calendarGrid.innerHTML = '';
+            
+            monthYearEl.textContent = `${new Date(year, month).toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}`;
+            
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const today = new Date();
+
+            for (let i = 0; i < firstDay; i++) {
+                calendarGrid.innerHTML += `<div></div>`;
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayEl = document.createElement('div');
+                const date = new Date(year, month, day);
+                const dateString = date.toISOString().split('T')[0];
+
+                dayEl.textContent = day;
+                dayEl.className = 'calendar-day';
+
+                if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+                    dayEl.classList.add('today');
+                }
+                
+                const event = events.find(e => e.date === dateString);
+                if(event) {
+                    dayEl.dataset[event.type] = event.name;
+                    dayEl.classList.add('has-tooltip', 'cursor-pointer');
+                    dayEl.innerHTML += `<div class="tooltip absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 z-10 whitespace-nowrap">${event.name}</div>`;
+                }
+                
+                calendarGrid.appendChild(dayEl);
+            }
+        }
+        
+        document.getElementById('prev-month-btn').addEventListener('click', () => {
+            const oldYear = currentDate.getFullYear();
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            if (currentDate.getFullYear() !== oldYear) {
+                 fetchEvents(currentDate.getFullYear());
+            } else {
+                renderCalendar(currentDate.getFullYear(), currentDate.getMonth());
+            }
+        });
+
+        document.getElementById('next-month-btn').addEventListener('click', () => {
+            const oldYear = currentDate.getFullYear();
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            if (currentDate.getFullYear() !== oldYear) {
+                 fetchEvents(currentDate.getFullYear());
+            } else {
+                renderCalendar(currentDate.getFullYear(), currentDate.getMonth());
+            }
+        });
+
+
+        // --- FIM DA LÓGICA DO CALENDÁRIO ---
+
+        const renderBoard = (tasks) => {
+            allTasks = tasks;
+            document.querySelectorAll('.task-list').forEach(list => list.innerHTML = '');
+            const counts = { new: 0, progress: 0, review: 0, done: 0 };
+            tasks.forEach(task => {
+                counts[task.status]++;
+                const card = document.createElement('div');
+                card.className = 'task-card bg-white p-3 rounded-lg shadow cursor-pointer hover:shadow-md transition-shadow';
+                card.draggable = (currentUser.role === 'admin');
+                card.dataset.id = task.id;
+                const rejectionBadge = task.rejectionReason ? `<span class="bg-red-100 text-red-800 text-xs font-semibold mt-2 px-2.5 py-0.5 rounded-full inline-block">Rejeitado</span>` : '';
+                card.innerHTML = `<div class="pointer-events-none"><p class="font-semibold text-gray-800">${task.title}</p><p class="text-sm text-gray-500 mt-1">${task.store}</p>${rejectionBadge}<div class="flex items-center space-x-2 mt-3 text-gray-400">${task.link ? '<i data-lucide="link-2" class="w-4 h-4"></i>' : ''}${task.attachmentLink ? '<i data-lucide="paperclip" class="w-4 h-4"></i>' : ''}</div></div>`;
+                
+                if(currentUser.role === 'admin') {
+                    card.addEventListener('dragstart', (e) => { e.target.classList.add('dragging'); e.dataTransfer.setData('text/plain', e.target.dataset.id); });
+                    card.addEventListener('dragend', (e) => e.target.classList.remove('dragging'));
+                }
+                card.addEventListener('click', () => openViewModal(task.id));
+
+                if (currentUser.role === 'admin' && task.status === 'progress' && task.rejectionReason) {
+                    const adminActions = document.createElement('div');
+                    adminActions.className = 'mt-3 pt-3 border-t border-gray-200 flex';
+                    adminActions.innerHTML = `<button data-task-id="${task.id}" class="resubmit-btn flex-1 bg-blue-500 text-white text-sm font-bold py-1.5 px-2 rounded-md hover:bg-blue-600 transition-colors">Reenviar p/ Revisão</button>`;
+                    card.appendChild(adminActions);
+                }
+
+                if(currentUser.role === 'client' && task.status === 'review') {
+                    const clientActions = document.createElement('div');
+                    clientActions.className = 'mt-3 pt-3 border-t border-gray-200 flex justify-around gap-2';
+                    clientActions.innerHTML = `<button data-task-id="${task.id}" class="approve-btn flex-1 bg-green-500 text-white text-sm font-bold py-1.5 px-2 rounded-md hover:bg-green-600">Aprovar</button><button data-task-id="${task.id}" class="reject-btn flex-1 bg-red-500 text-white text-sm font-bold py-1.5 px-2 rounded-md hover:bg-red-600">Reprovar</button>`;
+                    card.appendChild(clientActions);
+                }
+                document.getElementById(`tasks-${task.status}`).appendChild(card);
+            });
+            lucide.createIcons();
+            Object.keys(counts).forEach(status => document.getElementById(`count-${status}`).textContent = counts[status]);
+        };
+
+        const openTaskModal = (task = null) => {
+            taskForm.reset();
+            document.getElementById('upload-status').textContent = '';
+            document.getElementById('submit-task-btn').disabled = false;
+            document.getElementById('submit-task-btn').textContent = 'Salvar';
+            const modalTitle = document.getElementById('modal-title');
+            if (task) {
+                modalTitle.textContent = 'Editar Solicitação';
+                document.getElementById('task-id').value = task.id;
+                document.getElementById('title').value = task.title;
+                document.getElementById('store').value = task.store;
+                document.getElementById('link').value = task.link || '';
+                document.getElementById('attachmentLink').value = task.attachmentLink || '';
+            } else {
+                modalTitle.textContent = 'Nova Solicitação';
+                document.getElementById('task-id').value = '';
+                if (currentUser.role === 'client') {
+                    const storeInput = document.getElementById('store');
+                    storeInput.value = currentUser.store;
+                    storeInput.readOnly = true;
+                    storeInput.classList.add('bg-gray-100');
+                } else {
+                    const storeInput = document.getElementById('store');
+                    storeInput.readOnly = false;
+                    storeInput.classList.remove('bg-gray-100');
+                }
+            }
+            taskModal.classList.remove('hidden');
+        };
+
+        const openViewModal = (taskId) => {
+            const task = allTasks.find(t => t.id === taskId);
+            if (!task) return;
+            document.getElementById('view-title').textContent = task.title;
+            document.getElementById('view-store').textContent = task.store;
+            document.getElementById('view-link').innerHTML = task.link ? `<a href="${task.link}" target="_blank" rel="noopener noreferrer">${task.link}</a>` : 'Nenhum';
+            document.getElementById('view-attachment').innerHTML = task.attachmentLink ? `<a href="${task.attachmentLink}" target="_blank" rel="noopener noreferrer">${task.attachmentLink}</a>` : 'Nenhum';
+            
+            const adminNoteContainer = document.getElementById('view-admin-note-container');
+            if (task.adminChangeNote) {
+                document.getElementById('view-admin-note').textContent = task.adminChangeNote;
+                adminNoteContainer.classList.remove('hidden');
+            } else {
+                adminNoteContainer.classList.add('hidden');
+            }
+
+            const rejectionContainer = document.getElementById('view-rejection-reason-container');
+            if(task.rejectionReason) {
+                document.getElementById('view-rejection-reason').textContent = task.rejectionReason;
+                rejectionContainer.classList.remove('hidden');
+            } else {
+                rejectionContainer.classList.add('hidden');
+            }
+
+            editTaskBtn.onclick = () => { closeViewModal(); openTaskModal(task); };
+            const deleteTaskBtn = document.getElementById('delete-task-btn');
+            if (currentUser.role === 'admin') {
+                deleteTaskBtn.classList.remove('hidden');
+                deleteTaskBtn.onclick = () => deleteTaskWithConfirmation(deleteTaskBtn, task.id);
+            } else {
+                deleteTaskBtn.classList.add('hidden');
+            }
+            viewTaskModal.classList.remove('hidden');
+        };
+
+        const deleteTaskWithConfirmation = async (btn, taskId) => {
+            if (btn.dataset.confirming === 'true') {
+                try {
+                    await deleteDoc(doc(db, "solicitacoes", taskId));
+                    closeViewModal();
+                } catch (error) { console.error("Erro ao apagar tarefa:", error); alert('Erro ao apagar tarefa.'); }
+            } else {
+                btn.dataset.confirming = 'true';
+                btn.innerHTML = `<i data-lucide="alert-triangle" class="w-4 h-4"></i>Confirmar?`;
+                btn.classList.replace('bg-red-600', 'bg-yellow-500');
+                lucide.createIcons();
+                setTimeout(() => {
+                    if (btn.dataset.confirming === 'true') {
+                        btn.dataset.confirming = 'false';
+                        btn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>Apagar`;
+                        btn.classList.replace('bg-yellow-500', 'bg-red-600');
+                        lucide.createIcons();
+                    }
+                }, 4000);
+            }
+        };
+
+        const closeTaskModal = () => taskModal.classList.add('hidden');
+        const closeViewModal = () => {
+            const deleteTaskBtn = document.getElementById('delete-task-btn');
+            if (deleteTaskBtn.dataset.confirming === 'true') {
+                deleteTaskBtn.dataset.confirming = 'false';
+                deleteTaskBtn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>Apagar`;
+                deleteTaskBtn.classList.replace('bg-yellow-500', 'bg-red-600');
+                lucide.createIcons();
+            }
+            viewTaskModal.classList.add('hidden');
+        };
+        const closeUsersModal = () => { userManagementModal.classList.add('hidden'); if(unsubscribeUsers) unsubscribeUsers(); };
+        const openRejectionModal = (taskId) => { rejectionForm.reset(); document.getElementById('rejection-task-id').value = taskId; rejectionModal.classList.remove('hidden'); };
+        const closeRejectionModal = () => rejectionModal.classList.add('hidden');
+        const openResubmitModal = (taskId) => { resubmitForm.reset(); document.getElementById('resubmit-task-id').value = taskId; resubmitModal.classList.remove('hidden'); };
+        const closeResubmitModal = () => resubmitModal.classList.add('hidden');
+        
+        const setupTaskListeners = () => {
+            let q;
+            const solicitacoesRef = collection(db, "solicitacoes");
+            if (currentUser.role === 'admin') {
+                q = query(solicitacoesRef);
+            } else {
+                q = query(solicitacoesRef, where("store", "==", currentUser.store));
+            }
+            if (unsubscribeTasks) unsubscribeTasks();
+            unsubscribeTasks = onSnapshot(q, (snapshot) => { renderBoard(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); });
+        };
+        
+        const setupUserManagement = () => {
+            if(unsubscribeUsers) unsubscribeUsers();
+            unsubscribeUsers = onSnapshot(query(collection(db, "users")), (snapshot) => {
+                userListDiv.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const user = doc.data();
+                    if (user.username === currentUser.username) return;
+                    const userEl = document.createElement('div');
+                    const roleBadge = user.role === 'admin' ? `<span class="bg-blue-200 text-blue-800 text-xs font-semibold px-2 rounded-full">Admin</span>` : `<span class="bg-gray-200 text-gray-800 text-xs font-semibold px-2 rounded-full">Cliente</span>`;
+                    userEl.className = 'flex justify-between items-center p-2 border rounded-md bg-white';
+                    userEl.innerHTML = `<div><strong>${user.username}</strong> <span class="text-gray-500">(${user.store || 'N/A'})</span> ${roleBadge}</div><button data-id="${doc.id}" class="delete-user-btn text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100"><i data-lucide="trash-2" class="w-4 h-4"></i></button>`;
+                    userListDiv.appendChild(userEl);
+                });
+                lucide.createIcons();
+            });
+            userManagementModal.classList.remove('hidden');
+        };
+        
+        const main = () => {
+            lucide.createIcons();
+            if (currentUser.role === 'admin') {
+                manageUsersBtn.classList.remove('hidden');
+            }
+            setupTaskListeners();
+            fetchEvents(new Date().getFullYear());
+        };
+
+        const showApp = () => { appContent.classList.add('flex'); appContent.classList.remove('hidden'); main(); };
+        const showLogin = () => { loginScreen.classList.remove('hidden'); loginScreen.classList.add('flex'); };
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const q = query(collection(db, "users"), where("username", "==", usernameInput.value));
+            const snapshot = await getDocs(q);
+            if (snapshot.empty) { loginError.classList.remove('hidden'); return; }
+            const user = snapshot.docs[0].data();
+            if (user.password === passwordInput.value) {
+                currentUser = { id: snapshot.docs[0].id, ...user };
+                sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+                loginError.classList.add('hidden');
+                loginForm.reset();
+                loginScreen.classList.remove('flex');
+                loginScreen.classList.add('hidden');
+                showApp();
+            } else { loginError.classList.remove('hidden'); }
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            currentUser = null;
+            sessionStorage.removeItem('currentUser');
+            appContent.classList.add('hidden');
+            appContent.classList.remove('flex');
+            showLogin();
+        });
+
+        function startApp() {
+            const sessionUser = sessionStorage.getItem('currentUser');
+            if (sessionUser) {
+                currentUser = JSON.parse(sessionUser);
+                loginScreen.classList.add('hidden');
+                showApp();
+            } else {
+                loginScreen.classList.add('flex');
+                loginScreen.classList.remove('hidden');
+            }
+        }
+
+        // --- Event Listeners Gerais ---
+        addTaskBtn.addEventListener('click', () => openTaskModal());
+        cancelBtn.addEventListener('click', closeTaskModal);
+        closeViewBtn.addEventListener('click', closeViewModal);
+        manageUsersBtn.addEventListener('click', setupUserManagement);
+        closeUserModalBtn.addEventListener('click', closeUsersModal);
+        cancelRejectionBtn.addEventListener('click', closeRejectionModal);
+        cancelResubmitBtn.addEventListener('click', closeResubmitModal);
+        calendarBtn.addEventListener('click', () => calendarModal.classList.remove('hidden'));
+        closeCalendarBtn.addEventListener('click', () => calendarModal.classList.add('hidden'));
+        nextEventBalloon.addEventListener('click', () => calendarModal.classList.remove('hidden'));
+        [taskModal, viewTaskModal, userManagementModal, rejectionModal, resubmitModal, calendarModal].forEach(modal => { modal.addEventListener('click', (e) => { if(e.target === modal) modal.classList.add('hidden'); }); });
+        taskForm.addEventListener('submit', (e) => { e.preventDefault(); const file = document.getElementById('file-upload').files[0]; if (file) { handleFileUploadAndSave(file); } else { saveTaskToFirestore(); } });
+        
+        function handleFileUploadAndSave(file) {
+            const submitBtn = document.getElementById('submit-task-btn');
+            const uploadStatus = document.getElementById('upload-status');
+            const attachmentLinkInput = document.getElementById('attachmentLink');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Enviando...';
+            uploadStatus.textContent = 'Enviando arquivo...';
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+            fetch(CLOUDINARY_URL, { method: 'POST', body: formData })
+            .then(response => { if (!response.ok) { return response.json().then(err => { throw new Error(err.error.message); }); } return response.json(); })
+            .then(data => { attachmentLinkInput.value = data.secure_url; uploadStatus.textContent = 'Arquivo enviado com sucesso!'; saveTaskToFirestore(); })
+            .catch(error => { console.error("Erro no processo de upload:", error); alert("Ocorreu um erro no upload: " + error.message); uploadStatus.textContent = 'Falha no envio.'; submitBtn.disabled = false; submitBtn.textContent = 'Salvar'; });
+        }
+
+        async function saveTaskToFirestore() {
+            const submitBtn = document.getElementById('submit-task-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Salvando...';
+            const taskId = document.getElementById('task-id').value;
+            const taskData = { title: document.getElementById('title').value, store: document.getElementById('store').value, link: document.getElementById('link').value, attachmentLink: document.getElementById('attachmentLink').value, };
+            const fullTaskData = taskId ? taskData : { ...taskData, status: 'new', createdAt: new Date(), rejectionReason: '', adminChangeNote: '' };
+            try { if (taskId) { await updateDoc(doc(db, "solicitacoes", taskId), fullTaskData); } else { await addDoc(collection(db, "solicitacoes"), fullTaskData); } closeTaskModal(); }
+            catch (dbError) { console.error("Erro ao salvar no Firestore:", dbError); alert("Ocorreu um erro ao salvar a solicitação."); submitBtn.disabled = false; submitBtn.textContent = 'Salvar'; }
+        }
+
+        rejectionForm.addEventListener('submit', async (e) => { e.preventDefault(); const taskId = document.getElementById('rejection-task-id').value; const reason = document.getElementById('rejection-reason').value; try { await updateDoc(doc(db, "solicitacoes", taskId), { status: 'progress', rejectionReason: reason, adminChangeNote: '' }); closeRejectionModal(); } catch (error) { console.error("Erro:", error); alert("Ocorreu um erro."); } });
+        resubmitForm.addEventListener('submit', async (e) => { e.preventDefault(); const taskId = document.getElementById('resubmit-task-id').value; const description = document.getElementById('change-description').value; try { await updateDoc(doc(db, "solicitacoes", taskId), { status: 'review', rejectionReason: '', adminChangeNote: description }); closeResubmitModal(); } catch (error) { console.error("Erro ao reenviar:", error); alert("Ocorreu um erro."); } });
+        document.getElementById('kanban-board').addEventListener('click', async (e) => { const target = e.target; const taskId = target.dataset.taskId; if(!taskId) return; if (target.classList.contains('approve-btn')) { await updateDoc(doc(db, "solicitacoes", taskId), { status: 'done', rejectionReason: '', adminChangeNote: '' }); } if (target.classList.contains('reject-btn')) { openRejectionModal(taskId); } if (target.classList.contains('resubmit-btn')) { openResubmitModal(taskId); } });
+        addUserForm.addEventListener('submit', async (e) => { e.preventDefault(); const newUser = { username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, role: document.getElementById('new-role').value, store: document.getElementById('new-store').value || '' }; await addDoc(collection(db, "users"), newUser); addUserForm.reset(); });
+
+        userListDiv.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.delete-user-btn');
+            if (!btn) return;
+            const userId = btn.dataset.id;
+            if (btn.dataset.timeoutId) { clearTimeout(parseInt(btn.dataset.timeoutId, 10)); }
+            document.querySelectorAll('.delete-user-btn[data-confirming="true"]').forEach(otherBtn => { if (otherBtn !== btn) { otherBtn.dataset.confirming = 'false'; otherBtn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`; otherBtn.classList.remove('bg-yellow-400', 'text-black', 'p-1'); lucide.createIcons(); } });
+            if (btn.dataset.confirming === 'true') { try { await deleteDoc(doc(db, "users", userId)); } catch (error) { console.error("Erro:", error); alert('Erro ao apagar usuário.'); }
+            } else {
+                btn.dataset.confirming = 'true';
+                btn.innerHTML = `Confirmar?`;
+                btn.classList.add('bg-yellow-400', 'text-black', 'p-1');
+                const confirmTimeout = setTimeout(() => { if (btn.dataset.confirming === 'true') { btn.dataset.confirming = 'false'; btn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`; btn.classList.remove('bg-yellow-400', 'text-black', 'p-1'); lucide.createIcons(); } }, 4000);
+                btn.dataset.timeoutId = confirmTimeout;
+            }
+        });
+        
+        document.querySelectorAll('.kanban-column').forEach(column => {
+            column.addEventListener('dragover', (e) => { e.preventDefault(); column.classList.add('drag-over'); });
+            column.addEventListener('dragleave', () => column.classList.remove('drag-over'));
+            column.addEventListener('drop', async (e) => { e.preventDefault(); column.classList.remove('drag-over'); const taskId = e.dataTransfer.getData('text/plain'); if (taskId && currentUser.role === 'admin') { const taskRef = doc(db, "solicitacoes", taskId); await updateDoc(taskRef, { status: column.dataset.status }); } });
+        });
+        
+        startApp();
+
+    </script>
+</body>
+</html>
+
