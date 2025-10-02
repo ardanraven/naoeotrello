@@ -618,8 +618,8 @@
             }
             // Coordenador/Cliente não podem criar novas tarefas
             if ((currentUser.role === 'coordinator' || currentUser.role === 'client') && !task) {
-                 document.getElementById('submit-task-btn').disabled = true;
-                 document.getElementById('submit-task-btn').textContent = 'Não Autorizado';
+                 document.getElementById('submit-task-btn').disabled = false;
+                 document.getElementById('submit-task-btn').textContent = 'Enviar';
             } else if (task) {
                  document.getElementById('submit-task-btn').disabled = false;
                  document.getElementById('submit-task-btn').textContent = 'Salvar';
