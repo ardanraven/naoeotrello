@@ -64,6 +64,13 @@
                 </div>
             </div>
             <div class="flex items-center gap-2 sm:gap-4 flex-wrap justify-start sm:justify-end w-full">
+                <!-- Novo Filtro (Visível apenas para Admin no JS) -->
+                <div id="filter-bar-container" class="hidden w-full sm:w-auto">
+                    <select id="task-filter-select" class="bg-white text-gray-800 font-semibold py-2 px-3 rounded-lg shadow hover:bg-gray-100 transition flex items-center gap-2 text-sm w-full">
+                        <option value="all">Todas as Tarefas</option>
+                    </select>
+                </div>
+                
                 <button id="calendar-btn" class="bg-white text-blue-600 font-semibold py-2 px-3 rounded-lg shadow hover:bg-blue-50 transition flex items-center gap-2 text-sm"><i data-lucide="calendar" class="w-5 h-5"></i><span class="hidden sm:inline">Calendário</span></button>
                 <button id="manage-users-btn" class="hidden bg-white text-blue-600 font-semibold py-2 px-3 rounded-lg shadow hover:bg-blue-50 transition flex items-center gap-2 text-sm"><i data-lucide="users" class="w-5 h-5"></i><span class="hidden sm:inline">Usuários</span></button>
                 <button id="add-task-btn" class="bg-white text-blue-600 font-semibold py-2 px-3 rounded-lg shadow hover:bg-blue-50 transition flex items-center gap-2 text-sm"><i data-lucide="plus-circle" class="w-5 h-5"></i><span>Nova</span></button>
@@ -85,11 +92,67 @@
 
     <!-- Modais (com pequenos ajustes de padding e layout para mobile) -->
     <div id="calendar-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-50 p-4"> <div class="bg-white rounded-lg shadow-xl p-4 sm:p-6 w-full max-w-lg"> <div class="flex justify-between items-center mb-4"> <button id="prev-month-btn" class="p-2 rounded-full hover:bg-gray-100"><i data-lucide="chevron-left" class="w-6 h-6"></i></button> <h2 id="calendar-month-year" class="text-lg sm:text-xl font-bold text-gray-800 text-center"></h2> <button id="next-month-btn" class="p-2 rounded-full hover:bg-gray-100"><i data-lucide="chevron-right" class="w-6 h-6"></i></button> </div> <div class="grid grid-cols-7 gap-2 text-center text-xs sm:text-sm font-medium text-gray-500 mb-2"> <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div> </div> <div id="calendar-grid-container" class="calendar-grid"></div> <div class="flex flex-col sm:flex-row justify-between items-center mt-4 gap-4"> <div class="flex items-center gap-4 text-xs sm:text-sm"> <span class="flex items-center gap-2"><span class="w-3 h-3 bg-red-500 rounded-full"></span> Feriado</span> <span class="flex items-center gap-2"><span class="w-3 h-3 bg-blue-500 rounded-full"></span> Data Com.</span> </div> <button type="button" id="close-calendar-btn" class="w-full sm:w-auto bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Fechar</button> </div> </div> </div>
-    <div id="task-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-20 p-4"><div class="bg-white rounded-lg shadow-xl p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"><h2 class="text-2xl font-bold mb-4" id="modal-title">Nova Solicitação</h2><form id="task-form"><input type="hidden" id="task-id"><div class="mb-4"><label for="title" class="block text-sm font-medium text-gray-700">Título</label><input type="text" id="title" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3" required></div><div class="mb-4"><label for="description" class="block text-sm font-medium text-gray-700">Descrição da Solicitação</label><textarea id="description" rows="4" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="Descreva em detalhes o que você precisa..."></textarea></div><div class="mb-4"><label for="store" class="block text-sm font-medium text-gray-700">Loja Solicitante</label><input type="text" id="store" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3" required></div><div class="mb-4"><label for="link" class="block text-sm font-medium text-gray-700">Link de Referência</label><input type="url" id="link" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"></div><div class="mb-4"><label for="file-upload" class="block text-sm font-medium text-gray-700">Anexar Arquivos (opcional)</label><input type="file" id="file-upload" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" multiple><p id="upload-status" class="text-sm text-gray-500 mt-2"></p></div><div class="flex justify-end space-x-3 mt-6"><button type="button" id="cancel-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Cancelar</button><button type="submit" id="submit-task-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">Salvar</button></div></form></div></div>
-    <div id="view-task-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-30 p-4"><div class="bg-white rounded-lg shadow-xl p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content"><h2 id="view-title" class="text-2xl font-bold mb-4 text-gray-800"></h2><div class="space-y-4"><p><strong>Loja:</strong> <span id="view-store"></span></p><div><p class="font-semibold text-gray-800 mb-1">Descrição:</p><p id="view-description" class="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-3 rounded-md border"></p></div><p><strong>Link de Referência:</strong> <span id="view-link"></span></p><div><p class="font-semibold text-gray-800 mb-1">Anexos:</p><div id="view-attachment-list" class="flex flex-col space-y-1"></div></div><div id="view-admin-note-container" class="hidden pt-4 mt-4 border-t"><p class="font-semibold text-gray-800">Descrição das Alterações:</p><p id="view-admin-note" class="text-sm text-blue-700 bg-blue-100 p-3 rounded-md border border-blue-200"></p></div><div id="view-rejection-reason-container" class="hidden pt-4 mt-4 border-t"><p class="font-semibold text-gray-800">Motivo da Reprovação:</p><p id="view-rejection-reason" class="text-sm text-red-700 bg-red-100 p-3 rounded-md border border-red-200"></p></div></div><div class="flex flex-col-reverse sm:flex-row sm:justify-between items-center mt-6 gap-4"><button type="button" id="delete-task-btn" class="w-full sm:w-auto bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 hidden items-center justify-center gap-2"><i data-lucide="trash-2" class="w-4 h-4"></i>Apagar</button><div class="flex w-full sm:w-auto space-x-3"><button type="button" id="close-view-btn" class="flex-1 sm:flex-none bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Fechar</button><button type="button" id="edit-task-btn" class="flex-1 sm:flex-none bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">Editar</button></div></div></div></div>
+    
+    <!-- Modal de Tarefa (Criação/Edição) -->
+    <div id="task-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-20 p-4">
+        <div class="bg-white rounded-lg shadow-xl p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <h2 class="text-2xl font-bold mb-4" id="modal-title">Nova Solicitação</h2>
+            <form id="task-form">
+                <input type="hidden" id="task-id">
+                <div class="mb-4"><label for="title" class="block text-sm font-medium text-gray-700">Título</label><input type="text" id="title" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3" required></div>
+                <div class="mb-4"><label for="description" class="block text-sm font-medium text-gray-700">Descrição da Solicitação</label><textarea id="description" rows="4" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="Descreva em detalhes o que você precisa..."></textarea></div>
+                
+                <!-- Campo de designação (Visível apenas para Admin no JS) -->
+                <div class="mb-4 hidden" id="assignment-container">
+                    <label for="assignedTo" class="block text-sm font-medium text-gray-700">Designar para Coordenador/Admin (Torna a Loja opcional)</label>
+                    <select id="assignedTo" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-white">
+                        <option value="">(Nenhum)</option>
+                    </select>
+                </div>
+
+                <!-- Campo Loja Solicitante (Gerado dinamicamente no JS) -->
+                <div class="mb-4">
+                    <label for="store" class="block text-sm font-medium text-gray-700">Loja Solicitante</label>
+                    <div id="store-input-container">
+                        <!-- Conteúdo gerado dinamicamente via JS -->
+                    </div>
+                    <p id="store-hint" class="text-xs text-gray-500 mt-1 hidden">Este campo é opcional ao designar um coordenador.</p>
+                </div>
+
+                <div class="mb-4"><label for="link" class="block text-sm font-medium text-gray-700">Link de Referência</label><input type="url" id="link" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"></div>
+                <div class="mb-4"><label for="file-upload" class="block text-sm font-medium text-gray-700">Anexar Arquivos (opcional)</label><input type="file" id="file-upload" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" multiple><p id="upload-status" class="text-sm text-gray-500 mt-2"></p></div>
+                <div class="flex justify-end space-x-3 mt-6"><button type="button" id="cancel-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Cancelar</button><button type="submit" id="submit-task-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">Salvar</button></div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal de Visualização de Tarefa -->
+    <div id="view-task-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-30 p-4">
+        <div class="bg-white rounded-lg shadow-xl p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content">
+            <h2 id="view-title" class="text-2xl font-bold mb-4 text-gray-800"></h2>
+            <div class="space-y-4">
+                <p><strong>Loja:</strong> <span id="view-store"></span></p>
+                <p><strong>Designado:</strong> <span id="view-assigned-to" class="font-medium text-indigo-700"></span></p>
+                <div><p class="font-semibold text-gray-800 mb-1">Descrição:</p><p id="view-description" class="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-3 rounded-md border"></p></div>
+                <p><strong>Link de Referência:</strong> <span id="view-link"></span></p>
+                <div><p class="font-semibold text-gray-800 mb-1">Anexos:</p><div id="view-attachment-list" class="flex flex-col space-y-1"></div></div>
+                <div id="view-admin-note-container" class="hidden pt-4 mt-4 border-t"><p class="font-semibold text-gray-800">Descrição das Alterações:</p><p id="view-admin-note" class="text-sm text-blue-700 bg-blue-100 p-3 rounded-md border border-blue-200"></p></div>
+                <div id="view-rejection-reason-container" class="hidden pt-4 mt-4 border-t"><p class="font-semibold text-gray-800">Motivo da Reprovação:</p><p id="view-rejection-reason" class="text-sm text-red-700 bg-red-100 p-3 rounded-md border border-red-200"></p></div>
+            </div>
+            <div class="flex flex-col-reverse sm:flex-row sm:justify-between items-center mt-6 gap-4">
+                <button type="button" id="delete-task-btn" class="w-full sm:w-auto bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 hidden items-center justify-center gap-2"><i data-lucide="trash-2" class="w-4 h-4"></i>Apagar</button>
+                <div class="flex w-full sm:w-auto space-x-3">
+                    <button type="button" id="close-view-btn" class="flex-1 sm:flex-none bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Fechar</button>
+                    <button type="button" id="edit-task-btn" class="flex-1 sm:flex-none bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">Editar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Outros Modais (Reprovação, Reenvio, Gerenciamento de Usuários) -->
     <div id="rejection-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-50 p-4"><div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"><h2 class="text-xl font-bold mb-4">Reprovar Solicitação</h2><form id="rejection-form"><input type="hidden" id="rejection-task-id"><label for="rejection-reason" class="block text-sm font-medium text-gray-700">Por favor, informe o motivo da reprovação:</label><textarea id="rejection-reason" rows="4" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500" required></textarea><div class="flex justify-end space-x-3 mt-4"><button type="button" id="cancel-rejection-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Cancelar</button><button type="submit" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">Enviar Reprovação</button></div></form></div></div>
     <div id="resubmit-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-50 p-4"><div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"><h2 class="text-xl font-bold mb-4">Reenviar para Revisão</h2><form id="resubmit-form"><input type="hidden" id="resubmit-task-id"><label for="change-description" class="block text-sm font-medium text-gray-700">Descreva as alterações realizadas:</label><textarea id="change-description" rows="4" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500" required></textarea><div class="flex justify-end space-x-3 mt-4"><button type="button" id="cancel-resubmit-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Cancelar</button><button type="submit" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">Reenviar</button></div></form></div></div>
-    <div id="user-management-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-40 p-4"><div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] flex flex-col"><div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">Gerenciar Usuários</h2><button id="close-user-modal-btn" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button></div><div class="flex-1 overflow-y-auto pr-2"><h3 class="text-lg font-semibold mb-2">Adicionar Novo Usuário</h3><form id="add-user-form" class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-6 p-4 border rounded-lg bg-gray-50"><input id="new-username" type="text" placeholder="Usuário" class="p-2 border rounded" required><input id="new-password" type="password" placeholder="Senha" class="p-2 border rounded" required><input id="new-store" type="text" placeholder="Nome da Loja (se cliente)" class="p-2 border rounded"><select id="new-role" class="p-2 border rounded bg-white"><option value="client">Cliente</option><option value="admin">Admin</option></select><button type="submit" class="bg-blue-600 text-white font-semibold p-2 rounded-lg hover:bg-blue-700">Adicionar</button></form><h3 class="text-lg font-semibold mb-2">Usuários Cadastrados</h3><div id="user-list" class="space-y-2"></div></div></div></div>
+    <div id="user-management-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-40 p-4"><div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] flex flex-col"><div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">Gerenciar Usuários</h2><button id="close-user-modal-btn" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button></div><div class="flex-1 overflow-y-auto pr-2"><h3 class="text-lg font-semibold mb-2">Adicionar Novo Usuário</h3><form id="add-user-form" class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-6 p-4 border rounded-lg bg-gray-50"><input id="new-username" type="text" placeholder="Usuário" class="p-2 border rounded" required><input id="new-password" type="password" placeholder="Senha" class="p-2 border rounded" required><input id="new-store" type="text" placeholder="Nome da Loja (se cliente)" class="p-2 border rounded"><select id="new-role" class="p-2 border rounded bg-white"><option value="client">Cliente</option><option value="coordinator">Coordenador</option><option value="admin">Admin</option></select><button type="submit" class="bg-blue-600 text-white font-semibold p-2 rounded-lg hover:bg-blue-700">Adicionar</button></form><h3 class="text-lg font-semibold mb-2">Usuários Cadastrados</h3><div id="user-list" class="space-y-2"></div></div></div></div>
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
@@ -146,8 +209,16 @@
         const calendarBtn = document.getElementById('calendar-btn');
         const closeCalendarBtn = document.getElementById('close-calendar-btn');
         const nextEventBalloon = document.getElementById('next-event-balloon');
+        
+        // Elemento do novo filtro
+        const filterBarContainer = document.getElementById('filter-bar-container');
+        const taskFilterSelect = document.getElementById('task-filter-select');
+        // Novo container para o input/select de Loja
+        const storeInputContainer = document.getElementById('store-input-container');
+        const storeHint = document.getElementById('store-hint');
 
-        // --- LÓGICA DO CALENDÁRIO ---
+
+        // --- LÓGICA DO CALENDÁRIO (Sem Alterações) ---
         const commemorativeDates = [
             { date: '01-01', name: 'Confraternização Universal' }, { date: '01-07', name: 'Dia do Leitor' },
             { date: '01-15', name: 'Dia Mundial do Compositor' }, { date: '02-19', name: 'Dia do Esportista' },
@@ -289,6 +360,74 @@
 
         // --- FIM DA LÓGICA DO CALENDÁRIO ---
 
+        // Função para buscar Coordenadores/Admins e Lojas (Clientes)
+        async function fetchFilterOptions() {
+            // 1. Get all unique stores from all tasks (for Store filter)
+            const solicitacoesRef = collection(db, "solicitacoes");
+            const tasksSnapshot = await getDocs(solicitacoesRef);
+            const uniqueStores = new Set();
+            tasksSnapshot.forEach(doc => {
+                const store = doc.data().store;
+                if (store) uniqueStores.add(store);
+            });
+
+            // 2. Get all Coordinators and Admins (for User filter and assignment)
+            const usersQ = query(collection(db, "users"), where("role", "in", ["coordinator", "admin"]));
+            const usersSnapshot = await getDocs(usersQ);
+            const assignableUsers = usersSnapshot.docs.map(doc => ({
+                username: doc.data().username,
+                role: doc.data().role
+            }));
+
+            // 3. Get all client stores from users collection (for store selection list)
+            const clientsQ = query(collection(db, "users"), where("role", "==", "client"));
+            const clientsSnapshot = await getDocs(clientsQ);
+            const clientStores = clientsSnapshot.docs
+                .map(doc => doc.data().store)
+                .filter(store => store); // Filtra strings vazias
+                
+            const uniqueClientStores = Array.from(new Set(clientStores)).sort();
+
+            return { stores: Array.from(uniqueStores).sort(), users: assignableUsers, clientStores: uniqueClientStores };
+        }
+
+        // Função para preencher a barra de filtros
+        async function renderFilterBar() {
+            const filterData = await fetchFilterOptions();
+            const select = taskFilterSelect;
+            
+            // Limpa as opções anteriores, mas mantém "Todas as Tarefas"
+            select.innerHTML = '<option value="all">Todas as Tarefas</option>';
+
+            if (filterData.stores.length > 0) {
+                const optgroupStores = document.createElement('optgroup');
+                optgroupStores.label = "Filtrar por Loja (Existentes)";
+                filterData.stores.forEach(store => {
+                    const option = document.createElement('option');
+                    option.value = `store:${store}`;
+                    option.textContent = `Loja: ${store}`;
+                    optgroupStores.appendChild(option);
+                });
+                select.appendChild(optgroupStores);
+            }
+
+            if (filterData.users.length > 0) {
+                const optgroupUsers = document.createElement('optgroup');
+                optgroupUsers.label = "Filtrar por Designado";
+                filterData.users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = `user:${user.username}`;
+                    option.textContent = `${user.username} (${user.role === 'admin' ? 'Admin' : 'Coordenador'})`;
+                    optgroupUsers.appendChild(option);
+                });
+                select.appendChild(optgroupUsers);
+            }
+            
+            select.onchange = () => setupTaskListeners(select.value);
+            filterBarContainer.classList.remove('hidden');
+        }
+
+
         const renderBoard = (tasks) => {
             allTasks = tasks;
             document.querySelectorAll('.task-list').forEach(list => list.innerHTML = '');
@@ -297,64 +436,195 @@
                 counts[task.status]++;
                 const card = document.createElement('div');
                 card.className = 'task-card bg-white p-3 rounded-lg shadow cursor-pointer hover:shadow-md transition-shadow';
-                card.draggable = (currentUser.role === 'admin');
-                card.dataset.id = task.id;
-                const rejectionBadge = task.rejectionReason ? `<span class="bg-red-100 text-red-800 text-xs font-semibold mt-2 px-2.5 py-0.5 rounded-full inline-block">Rejeitado</span>` : '';
-                card.innerHTML = `<div class="pointer-events-none"><p class="font-semibold text-gray-800">${task.title}</p><p class="text-sm text-gray-500 mt-1">${task.store}</p>${rejectionBadge}<div class="flex items-center space-x-2 mt-3 text-gray-400">${task.link ? '<i data-lucide="link-2" class="w-4 h-4"></i>' : ''}${task.attachmentLinks && task.attachmentLinks.length > 0 ? '<i data-lucide="paperclip" class="w-4 h-4"></i>' : ''}</div></div>`;
                 
-                if(currentUser.role === 'admin') {
+                // ADMIN E COORDENADOR (AGORA) PODEM ARRASTAR
+                card.draggable = (currentUser.role === 'admin' || currentUser.role === 'coordinator');
+                card.dataset.id = task.id;
+                
+                const rejectionBadge = task.rejectionReason ? `<span class="bg-red-100 text-red-800 text-xs font-semibold mt-2 px-2.5 py-0.5 rounded-full inline-block">Rejeitado</span>` : '';
+                const assignedToBadge = task.assignedTo ? `<span class="bg-indigo-100 text-indigo-800 text-xs font-semibold mt-2 px-2.5 py-0.5 rounded-full inline-block">Designado: ${task.assignedTo}</span>` : '';
+                
+                card.innerHTML = `<div class="pointer-events-none"><p class="font-semibold text-gray-800">${task.title}</p><p class="text-sm text-gray-500 mt-1">${task.store}</p>${rejectionBadge}${assignedToBadge}<div class="flex items-center space-x-2 mt-3 text-gray-400">${task.link ? '<i data-lucide="link-2" class="w-4 h-4"></i>' : ''}${task.attachmentLinks && task.attachmentLinks.length > 0 ? '<i data-lucide="paperclip" class="w-4 h-4"></i>' : ''}</div></div>`;
+                
+                // ADMIN E COORDENADOR (AGORA) PODEM ARRASTAR
+                if(currentUser.role === 'admin' || currentUser.role === 'coordinator') {
                     card.addEventListener('dragstart', (e) => { e.target.classList.add('dragging'); e.dataTransfer.setData('text/plain', e.target.dataset.id); });
                     card.addEventListener('dragend', (e) => e.target.classList.remove('dragging'));
                 }
                 card.addEventListener('click', () => openViewModal(task.id));
 
-                if (currentUser.role === 'admin' && task.status === 'progress' && task.rejectionReason) {
+                // Ações visíveis para Admin E COORDENADOR no caso de Rejeição
+                if ((currentUser.role === 'admin' || currentUser.role === 'coordinator') && task.status === 'progress' && task.rejectionReason) {
                     const adminActions = document.createElement('div');
                     adminActions.className = 'mt-3 pt-3 border-t border-gray-200 flex';
                     adminActions.innerHTML = `<button data-task-id="${task.id}" class="resubmit-btn flex-1 bg-blue-500 text-white text-sm font-bold py-1.5 px-2 rounded-md hover:bg-blue-600 transition-colors">Reenviar p/ Revisão</button>`;
                     card.appendChild(adminActions);
                 }
 
-                if(currentUser.role === 'client' && task.status === 'review') {
-                    const clientActions = document.createElement('div');
-                    clientActions.className = 'mt-3 pt-3 border-t border-gray-200 flex justify-around gap-2';
-                    clientActions.innerHTML = `<button data-task-id="${task.id}" class="approve-btn flex-1 bg-green-500 text-white text-sm font-bold py-1.5 px-2 rounded-md hover:bg-green-600">Aprovar</button><button data-task-id="${task.id}" class="reject-btn flex-1 bg-red-500 text-white text-sm font-bold py-1.5 px-2 rounded-md hover:bg-red-600">Reprovar</button>`;
-                    card.appendChild(clientActions);
+                // LÓGICA ATUALIZADA: Ações visíveis para Cliente OU Admin (apenas em tarefas internas) na coluna de Revisão
+                let canApproveOrReject = false;
+                
+                // 1. Cliente pode aprovar/reprovar suas próprias tarefas
+                if(currentUser.role === 'client' && task.status === 'review' && task.store === currentUser.store) {
+                    canApproveOrReject = true;
                 }
+                
+                // 2. Admin pode aprovar/reprovar tarefas internas (sem loja)
+                if(currentUser.role === 'admin' && task.status === 'review' && !task.store) {
+                    canApproveOrReject = true;
+                }
+
+                if(canApproveOrReject) {
+                    const reviewActions = document.createElement('div');
+                    reviewActions.className = 'mt-3 pt-3 border-t border-gray-200 flex justify-around gap-2';
+                    reviewActions.innerHTML = `<button data-task-id="${task.id}" class="approve-btn flex-1 bg-green-500 text-white text-sm font-bold py-1.5 px-2 rounded-md hover:bg-green-600">Aprovar</button><button data-task-id="${task.id}" class="reject-btn flex-1 bg-red-500 text-white text-sm font-bold py-1.5 px-2 rounded-md hover:bg-red-600">Reprovar</button>`;
+                    card.appendChild(reviewActions);
+                }
+
                 document.getElementById(`tasks-${task.status}`).appendChild(card);
             });
             lucide.createIcons();
             Object.keys(counts).forEach(status => document.getElementById(`count-${status}`).textContent = counts[status]);
         };
 
-        const openTaskModal = (task = null) => {
+        const openTaskModal = async (task = null) => {
             taskForm.reset();
             document.getElementById('upload-status').textContent = '';
             document.getElementById('submit-task-btn').disabled = false;
             document.getElementById('submit-task-btn').textContent = 'Salvar';
+            
+            const assignmentContainer = document.getElementById('assignment-container');
+            const assignedToSelect = document.getElementById('assignedTo');
+            storeInputContainer.innerHTML = ''; // Limpa o container da loja
+            storeHint.classList.add('hidden');
+
+            // Busca os dados necessários para os selects
+            const { users: assignableUsers, clientStores } = await fetchFilterOptions();
+
+            // --- Lógica de renderização do campo LOJA SOLICITANTE ---
+            let storeElement;
+            if (currentUser.role === 'admin') {
+                // Admin usa um SELECT com todas as lojas cadastradas
+                storeElement = document.createElement('select');
+                storeElement.id = 'store';
+                storeElement.className = 'mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-white';
+                // A obrigatoriedade será definida abaixo, baseada na designação.
+                
+                let defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = '(Selecione a Loja)';
+                storeElement.appendChild(defaultOption);
+
+                clientStores.forEach(store => {
+                    const option = document.createElement('option');
+                    option.value = store;
+                    option.textContent = store;
+                    storeElement.appendChild(option);
+                });
+            } else {
+                // Coordenador/Cliente usa um INPUT de texto (readonly para Cliente, ou vazio para Coordenador se ele pudesse criar)
+                storeElement = document.createElement('input');
+                storeElement.type = 'text';
+                storeElement.id = 'store';
+                storeElement.className = 'mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3';
+                storeElement.required = true;
+                
+                if (currentUser.role === 'client') {
+                    storeElement.value = currentUser.store;
+                    storeElement.readOnly = true;
+                    storeElement.classList.add('bg-gray-100');
+                } else {
+                    // Coordenador não pode criar tarefa
+                    storeElement.readOnly = true;
+                    storeElement.classList.add('bg-gray-100');
+                    storeElement.value = '(Apenas clientes podem criar)';
+                }
+            }
+            storeInputContainer.appendChild(storeElement);
+            // --- Fim da lógica do campo LOJA SOLICITANTE ---
+
+
+            // --- Lógica de designação (Visível apenas para Admin) ---
+            if (currentUser.role === 'admin') {
+                assignmentContainer.classList.remove('hidden');
+                
+                assignedToSelect.innerHTML = '<option value="">(Nenhum)</option>';
+                assignableUsers.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.username;
+                    option.textContent = `${user.username} (${user.role === 'admin' ? 'Admin' : 'Coordenador'})`;
+                    assignedToSelect.appendChild(option);
+                });
+                
+                // Lógica de OBRIGATORIEDADE DINÂMICA
+                assignedToSelect.addEventListener('change', () => {
+                    const isAssigned = !!assignedToSelect.value;
+                    const storeElement = document.getElementById('store');
+                    
+                    if (storeElement) {
+                        storeElement.required = !isAssigned;
+                        if (isAssigned) {
+                            storeHint.classList.remove('hidden');
+                        } else {
+                            storeHint.classList.add('hidden');
+                        }
+                    }
+                });
+            } else {
+                assignmentContainer.classList.add('hidden');
+            }
+            // --- Fim da lógica de designação ---
+
+
             const modalTitle = document.getElementById('modal-title');
             if (task) {
                 modalTitle.textContent = 'Editar Solicitação';
                 document.getElementById('task-id').value = task.id;
                 document.getElementById('title').value = task.title;
                 document.getElementById('description').value = task.description || '';
-                document.getElementById('store').value = task.store;
                 document.getElementById('link').value = task.link || '';
-                // Attachment links are handled separately on save
+                
+                // Popula valores de edição
+                const currentStoreElement = document.getElementById('store');
+                if (currentStoreElement) currentStoreElement.value = task.store;
+
+                if (currentUser.role === 'admin') {
+                    document.getElementById('assignedTo').value = task.assignedTo || ''; 
+                    // Dispara o listener de mudança para ajustar a obrigatoriedade
+                    assignedToSelect.dispatchEvent(new Event('change'));
+                }
+                
+                // Se Coordenador, bloqueia edição de loja
+                if (currentUser.role === 'coordinator' && currentStoreElement) {
+                     currentStoreElement.readOnly = true;
+                     currentStoreElement.classList.add('bg-gray-100');
+                }
             } else {
+                // Criação de nova tarefa (só permitido para Cliente/Admin)
                 modalTitle.textContent = 'Nova Solicitação';
                 document.getElementById('task-id').value = '';
-                if (currentUser.role === 'client') {
-                    const storeInput = document.getElementById('store');
-                    storeInput.value = currentUser.store;
-                    storeInput.readOnly = true;
-                    storeInput.classList.add('bg-gray-100');
-                } else {
-                    const storeInput = document.getElementById('store');
-                    storeInput.readOnly = false;
-                    storeInput.classList.remove('bg-gray-100');
+                
+                if (currentUser.role === 'admin') {
+                    document.getElementById('assignedTo').value = '';
+                    assignedToSelect.dispatchEvent(new Event('change')); // Reseta a obrigatoriedade
                 }
             }
+            
+            // Coordenador/Cliente só podem editar Title/Description/Link/Files
+            if (currentUser.role === 'coordinator' || currentUser.role === 'client') {
+                 // Bloqueia campos sensíveis
+                 if (document.getElementById('store')) document.getElementById('store').readOnly = true;
+                 if (document.getElementById('assignedTo')) document.getElementById('assignedTo').disabled = true;
+            }
+            // Coordenador/Cliente não podem criar novas tarefas
+            if ((currentUser.role === 'coordinator' || currentUser.role === 'client') && !task) {
+                 document.getElementById('submit-task-btn').disabled = true;
+                 document.getElementById('submit-task-btn').textContent = 'Não Autorizado';
+            } else if (task) {
+                 document.getElementById('submit-task-btn').disabled = false;
+                 document.getElementById('submit-task-btn').textContent = 'Salvar';
+            }
+
             taskModal.classList.remove('hidden');
         };
 
@@ -362,7 +632,8 @@
             const task = allTasks.find(t => t.id === taskId);
             if (!task) return;
             document.getElementById('view-title').textContent = task.title;
-            document.getElementById('view-store').textContent = task.store;
+            document.getElementById('view-store').textContent = task.store || 'N/A (Designada)'; // Ajuste para mostrar N/A se loja vazia
+            document.getElementById('view-assigned-to').textContent = task.assignedTo || 'Ninguém'; 
             document.getElementById('view-description').textContent = task.description || 'Nenhuma descrição fornecida.';
             document.getElementById('view-link').innerHTML = task.link ? `<a href="${task.link}" target="_blank" rel="noopener noreferrer">${task.link}</a>` : 'Nenhum';
             
@@ -390,7 +661,18 @@
             if(task.rejectionReason) { rejectionContainer.classList.remove('hidden'); document.getElementById('view-rejection-reason').textContent = task.rejectionReason; }
             else { rejectionContainer.classList.add('hidden'); }
 
-            editTaskBtn.onclick = () => { closeViewModal(); openTaskModal(task); };
+            // Permite edição para Admin e para o Cliente/Coordenador que detém a tarefa
+            const canEdit = currentUser.role === 'admin' || 
+                           (currentUser.role === 'client' && task.store === currentUser.store) ||
+                           (currentUser.role === 'coordinator' && task.assignedTo === currentUser.username);
+
+            if (canEdit) {
+                editTaskBtn.classList.remove('hidden');
+                editTaskBtn.onclick = () => { closeViewModal(); openTaskModal(task); };
+            } else {
+                 editTaskBtn.classList.add('hidden');
+            }
+                           
             const deleteTaskBtn = document.getElementById('delete-task-btn');
             if (currentUser.role === 'admin') {
                 deleteTaskBtn.classList.remove('hidden');
@@ -404,7 +686,7 @@
         const deleteTaskWithConfirmation = async (btn, taskId) => {
             if (btn.dataset.confirming === 'true') {
                 try { await deleteDoc(doc(db, "solicitacoes", taskId)); closeViewModal(); } 
-                catch (error) { console.error("Erro ao apagar tarefa:", error); alert('Erro ao apagar tarefa.'); }
+                catch (error) { console.error("Erro ao apagar tarefa:", error); /* alert('Erro ao apagar tarefa.'); */ }
             } else {
                 btn.dataset.confirming = 'true';
                 btn.innerHTML = `<i data-lucide="alert-triangle" class="w-4 h-4"></i>Confirmar?`;
@@ -424,7 +706,7 @@
         const closeTaskModal = () => taskModal.classList.add('hidden');
         const closeViewModal = () => {
             const deleteTaskBtn = document.getElementById('delete-task-btn');
-            if (deleteTaskBtn.dataset.confirming === 'true') {
+            if (deleteTaskBtn && deleteTaskBtn.dataset.confirming === 'true') {
                 deleteTaskBtn.dataset.confirming = 'false';
                 deleteTaskBtn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>Apagar`;
                 deleteTaskBtn.classList.replace('bg-yellow-500', 'bg-red-600');
@@ -438,11 +720,36 @@
         const openResubmitModal = (taskId) => { resubmitForm.reset(); document.getElementById('resubmit-task-id').value = taskId; resubmitModal.classList.remove('hidden'); };
         const closeResubmitModal = () => resubmitModal.classList.add('hidden');
         
-        const setupTaskListeners = () => {
+        // Lógica de visualização de tarefas para cada perfil (Admin, Coordenador, Cliente)
+        const setupTaskListeners = (filter = 'all') => {
             let q;
             const solicitacoesRef = collection(db, "solicitacoes");
-            if (currentUser.role === 'admin') { q = query(solicitacoesRef); } 
-            else { q = query(solicitacoesRef, where("store", "==", currentUser.store)); }
+            
+            if (currentUser.role === 'admin') {
+                // Admin: Aplica o filtro selecionado na barra de filtros
+                if (filter === 'all') {
+                    q = query(solicitacoesRef); 
+                } else if (filter.startsWith('store:')) {
+                    const storeName = filter.substring(6); // e.g., 'store:Loja 01'
+                    q = query(solicitacoesRef, where("store", "==", storeName));
+                } else if (filter.startsWith('user:')) {
+                    const username = filter.substring(5); // e.g., 'user:coordinator'
+                    q = query(solicitacoesRef, where("assignedTo", "==", username));
+                } else {
+                    q = query(solicitacoesRef); // Fallback to all
+                }
+            } 
+            else if (currentUser.role === 'coordinator') {
+                // Coordenador: Só vê tarefas designadas para ele
+                q = query(solicitacoesRef, where("assignedTo", "==", currentUser.username)); 
+            }
+            else if (currentUser.role === 'client') { 
+                // Cliente: Só vê tarefas da sua loja
+                q = query(solicitacoesRef, where("store", "==", currentUser.store)); 
+            } else {
+                q = query(solicitacoesRef, where("status", "==", "invalid")); // Query vazia para outros perfis
+            }
+            
             if (unsubscribeTasks) unsubscribeTasks();
             unsubscribeTasks = onSnapshot(q, (snapshot) => { renderBoard(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); });
         };
@@ -454,8 +761,11 @@
                 snapshot.forEach(doc => {
                     const user = doc.data();
                     if (user.username === currentUser.username) return;
+                    // Bloqueia gestão de usuários para Coordenadores
+                    if (currentUser.role === 'coordinator') return; 
+
+                    const roleBadge = user.role === 'admin' ? `<span class="bg-blue-200 text-blue-800 text-xs font-semibold px-2 rounded-full">Admin</span>` : user.role === 'coordinator' ? `<span class="bg-green-200 text-green-800 text-xs font-semibold px-2 rounded-full">Coordenador</span>` : `<span class="bg-gray-200 text-gray-800 text-xs font-semibold px-2 rounded-full">Cliente</span>`;
                     const userEl = document.createElement('div');
-                    const roleBadge = user.role === 'admin' ? `<span class="bg-blue-200 text-blue-800 text-xs font-semibold px-2 rounded-full">Admin</span>` : `<span class="bg-gray-200 text-gray-800 text-xs font-semibold px-2 rounded-full">Cliente</span>`;
                     userEl.className = 'flex justify-between items-center p-2 border rounded-md bg-white';
                     userEl.innerHTML = `<div><strong>${user.username}</strong> <span class="text-gray-500">(${user.store || 'N/A'})</span> ${roleBadge}</div><button data-id="${doc.id}" class="delete-user-btn text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100"><i data-lucide="trash-2" class="w-4 h-4"></i></button>`;
                     userListDiv.appendChild(userEl);
@@ -467,7 +777,14 @@
         
         const main = () => {
             lucide.createIcons();
-            if (currentUser.role === 'admin') { manageUsersBtn.classList.remove('hidden'); }
+            if (currentUser.role === 'admin') { 
+                manageUsersBtn.classList.remove('hidden'); 
+                renderFilterBar(); // Renderiza e configura a barra de filtro
+            }
+            // Coordenador não pode gerenciar usuários, então o botão 'manage-users-btn' fica hidden
+            if (currentUser.role === 'coordinator') {
+                 manageUsersBtn.classList.add('hidden'); 
+            }
             setupTaskListeners();
             fetchEvents(new Date().getFullYear());
         };
@@ -502,7 +819,35 @@
             showLogin();
         });
 
+        // --- Função para criar usuários iniciais para facilitar o teste ---
+        async function createInitialUsers() {
+            const usersCollection = collection(db, "users");
+            const testUsers = [
+                { username: 'admin', password: '123', role: 'admin', store: '' },
+                { username: 'coordinator', password: '123', role: 'coordinator', store: '' },
+                { username: 'coordenador2', password: '123', role: 'coordinator', store: '' },
+                { username: 'loja01', password: '123', role: 'client', store: 'Loja 01' },
+                { username: 'loja02', password: '123', role: 'client', store: 'Loja 02' } // Adicionando mais uma loja para o select
+            ];
+
+            for (const user of testUsers) {
+                try {
+                    const q = query(usersCollection, where("username", "==", user.username));
+                    const snapshot = await getDocs(q);
+                    if (snapshot.empty) {
+                        await addDoc(usersCollection, user);
+                        console.log(`Usuário de teste ${user.username} criado.`);
+                    }
+                } catch(e) {
+                    console.error("Erro ao criar usuário inicial:", e);
+                }
+            }
+        }
+        
         function startApp() {
+            // Cria usuários de teste (só executa se não existirem)
+            createInitialUsers(); 
+            
             const sessionUser = sessionStorage.getItem('currentUser');
             if (sessionUser) {
                 currentUser = JSON.parse(sessionUser);
@@ -518,7 +863,8 @@
         addTaskBtn.addEventListener('click', () => openTaskModal());
         cancelBtn.addEventListener('click', closeTaskModal);
         closeViewBtn.addEventListener('click', closeViewModal);
-        manageUsersBtn.addEventListener('click', setupUserManagement);
+        // Coordenadores não podem gerenciar usuários (botão é hidden no main)
+        manageUsersBtn.addEventListener('click', setupUserManagement); 
         closeUserModalBtn.addEventListener('click', closeUsersModal);
         cancelRejectionBtn.addEventListener('click', closeRejectionModal);
         cancelResubmitBtn.addEventListener('click', closeResubmitModal);
@@ -529,6 +875,21 @@
         
         taskForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            // Validação customizada para Admin:
+            if (currentUser.role === 'admin') {
+                const assignedToValue = document.getElementById('assignedTo').value;
+                const storeElement = document.getElementById('store');
+                const storeValue = storeElement?.value || '';
+                
+                if (!assignedToValue && !storeValue) {
+                    // Se não designou e não escolheu loja, bloqueia
+                    storeElement.required = true; // Força a visualização do erro do browser
+                    storeElement.reportValidity();
+                    return;
+                }
+            }
+            
             await handleFileUploadAndSave();
         });
         
@@ -561,7 +922,7 @@
                     uploadStatus.textContent = `${files.length} arquivo(s) enviado(s) com sucesso!`;
                 } catch (error) {
                     console.error("Erro no processo de upload:", error);
-                    alert("Ocorreu um erro no upload: " + error.message);
+                    console.error("Ocorreu um erro no upload: " + error.message);
                     uploadStatus.textContent = 'Falha no envio.';
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Salvar';
@@ -578,7 +939,6 @@
 
             const taskId = document.getElementById('task-id').value;
             
-            // Se for uma edição, precisamos manter os links antigos se nenhum novo for enviado.
             let finalAttachmentLinks = attachmentUrls;
             if (taskId && attachmentUrls.length === 0) {
                 const existingTask = allTasks.find(t => t.id === taskId);
@@ -587,17 +947,38 @@
                  const existingTask = allTasks.find(t => t.id === taskId);
                  finalAttachmentLinks = [...(existingTask.attachmentLinks || []), ...attachmentUrls];
             }
+            
+            // Pega o valor de assignedTo APENAS se o usuário for Admin
+            const assignedTo = (currentUser.role === 'admin') 
+                ? document.getElementById('assignedTo').value 
+                : (taskId ? allTasks.find(t => t.id === taskId)?.assignedTo : '');
+                
+            // Pega o valor de store, seja do select (Admin) ou do input (Cliente/Coordenador na edição)
+            let storeValue = document.getElementById('store')?.value || '';
+            
+            // Lógica para Admin: Se designou coordenador, a loja é nula.
+            if (currentUser.role === 'admin' && assignedTo) {
+                storeValue = ''; 
+            }
 
 
             const taskData = {
                 title: document.getElementById('title').value,
                 description: document.getElementById('description').value,
-                store: document.getElementById('store').value,
+                store: storeValue, // Usa o valor ajustado (pode ser vazio se designou coordenador)
                 link: document.getElementById('link').value,
                 attachmentLinks: finalAttachmentLinks,
+                assignedTo: assignedTo || '', // Inclui a designação
             };
             
-            const fullTaskData = taskId ? taskData : { ...taskData, status: 'new', createdAt: new Date(), rejectionReason: '', adminChangeNote: '' };
+            const fullTaskData = taskId ? taskData : { 
+                ...taskData, 
+                status: 'new', 
+                createdAt: new Date(), 
+                rejectionReason: '', 
+                adminChangeNote: '',
+                assignedTo: assignedTo || '',
+            };
             
             try {
                 if (taskId) { await updateDoc(doc(db, "solicitacoes", taskId), fullTaskData); } 
@@ -605,24 +986,37 @@
                 closeTaskModal();
             } catch (dbError) {
                 console.error("Erro ao salvar no Firestore:", dbError);
-                alert("Ocorreu um erro ao salvar a solicitação.");
+                console.error("Ocorreu um erro ao salvar a solicitação.");
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Salvar';
             }
         }
 
-        rejectionForm.addEventListener('submit', async (e) => { e.preventDefault(); const taskId = document.getElementById('rejection-task-id').value; const reason = document.getElementById('rejection-reason').value; try { await updateDoc(doc(db, "solicitacoes", taskId), { status: 'progress', rejectionReason: reason, adminChangeNote: '' }); closeRejectionModal(); } catch (error) { console.error("Erro:", error); alert("Ocorreu um erro."); } });
-        resubmitForm.addEventListener('submit', async (e) => { e.preventDefault(); const taskId = document.getElementById('resubmit-task-id').value; const description = document.getElementById('change-description').value; try { await updateDoc(doc(db, "solicitacoes", taskId), { status: 'review', rejectionReason: '', adminChangeNote: description }); closeResubmitModal(); } catch (error) { console.error("Erro ao reenviar:", error); alert("Ocorreu um erro."); } });
+        rejectionForm.addEventListener('submit', async (e) => { e.preventDefault(); const taskId = document.getElementById('rejection-task-id').value; const reason = document.getElementById('rejection-reason').value; try { await updateDoc(doc(db, "solicitacoes", taskId), { status: 'progress', rejectionReason: reason, adminChangeNote: '' }); closeRejectionModal(); } catch (error) { console.error("Erro:", error); /* alert("Ocorreu um erro."); */ } });
+        resubmitForm.addEventListener('submit', async (e) => { e.preventDefault(); const taskId = document.getElementById('resubmit-task-id').value; const description = document.getElementById('change-description').value; try { await updateDoc(doc(db, "solicitacoes", taskId), { status: 'review', rejectionReason: '', adminChangeNote: description }); closeResubmitModal(); } catch (error) { console.error("Erro ao reenviar:", error); /* alert("Ocorreu um erro."); */ } });
         document.getElementById('kanban-board').addEventListener('click', async (e) => { const target = e.target; const taskId = target.dataset.taskId; if(!taskId) return; if (target.classList.contains('approve-btn')) { await updateDoc(doc(db, "solicitacoes", taskId), { status: 'done', rejectionReason: '', adminChangeNote: '' }); } if (target.classList.contains('reject-btn')) { openRejectionModal(taskId); } if (target.classList.contains('resubmit-btn')) { openResubmitModal(taskId); } });
-        addUserForm.addEventListener('submit', async (e) => { e.preventDefault(); const newUser = { username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, role: document.getElementById('new-role').value, store: document.getElementById('new-store').value || '' }; await addDoc(collection(db, "users"), newUser); addUserForm.reset(); });
+        
+        // Admin pode adicionar novos usuários, Coordenador não
+        addUserForm.addEventListener('submit', async (e) => { 
+            e.preventDefault(); 
+            if (currentUser.role === 'coordinator') {
+                console.error("Coordenadores não podem adicionar usuários.");
+                return;
+            }
+            const newUser = { username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, role: document.getElementById('new-role').value, store: document.getElementById('new-store').value || '' }; 
+            await addDoc(collection(db, "users"), newUser); 
+            addUserForm.reset(); 
+        });
 
+        // Admin pode apagar usuários, Coordenador não
         userListDiv.addEventListener('click', async (e) => {
+            if (currentUser.role === 'coordinator') return;
             const btn = e.target.closest('.delete-user-btn');
             if (!btn) return;
             const userId = btn.dataset.id;
             if (btn.dataset.timeoutId) { clearTimeout(parseInt(btn.dataset.timeoutId, 10)); }
             document.querySelectorAll('.delete-user-btn[data-confirming="true"]').forEach(otherBtn => { if (otherBtn !== btn) { otherBtn.dataset.confirming = 'false'; otherBtn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`; otherBtn.classList.remove('bg-yellow-400', 'text-black', 'p-1'); lucide.createIcons(); } });
-            if (btn.dataset.confirming === 'true') { try { await deleteDoc(doc(db, "users", userId)); } catch (error) { console.error("Erro:", error); alert('Erro ao apagar usuário.'); }
+            if (btn.dataset.confirming === 'true') { try { await deleteDoc(doc(db, "users", userId)); } catch (error) { console.error("Erro:", error); /* alert('Erro ao apagar usuário.'); */ }
             } else {
                 btn.dataset.confirming = 'true';
                 btn.innerHTML = `Confirmar?`;
@@ -635,7 +1029,16 @@
         document.querySelectorAll('.kanban-column').forEach(column => {
             column.addEventListener('dragover', (e) => { e.preventDefault(); column.classList.add('drag-over'); });
             column.addEventListener('dragleave', () => column.classList.remove('drag-over'));
-            column.addEventListener('drop', async (e) => { e.preventDefault(); column.classList.remove('drag-over'); const taskId = e.dataTransfer.getData('text/plain'); if (taskId && currentUser.role === 'admin') { const taskRef = doc(db, "solicitacoes", taskId); await updateDoc(taskRef, { status: column.dataset.status }); } });
+            column.addEventListener('drop', async (e) => { 
+                e.preventDefault(); 
+                column.classList.remove('drag-over'); 
+                const taskId = e.dataTransfer.getData('text/plain'); 
+                // Admin OU COORDENADOR podem fazer drop
+                if (taskId && (currentUser.role === 'admin' || currentUser.role === 'coordinator')) { 
+                    const taskRef = doc(db, "solicitacoes", taskId); 
+                    await updateDoc(taskRef, { status: column.dataset.status }); 
+                } 
+            });
         });
         
         startApp();
